@@ -6,24 +6,33 @@
   <title>Ecoforest Impact Widget</title>
   <link rel="preconnect" href="https://ecoforest.green" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+
+  <!-- Font Awesome for icons -->
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"
+    rel="stylesheet"
+  />
+
+  <!-- Optional notify CSS (if used by widget) -->
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/notify/0.4.2/styles/metro/notify-metro.min.css"
+    rel="stylesheet"
+  />
+
   <style>
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
       background: linear-gradient(135deg, #d0f0c0, #a1e3d8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
       font-family: "Segoe UI", sans-serif;
     }
 
     .widget-wrapper {
-      max-width: 100%;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-      border-radius: 12px;
-      overflow: hidden;
-      background: white;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
     }
   </style>
 </head>
@@ -31,32 +40,16 @@
   <div class="widget-wrapper"></div>
 
   <script>
+    window.EcoWidgetConfig = {
+      org_slug: 'araka-digitalization'
+    };
+  </script>
+
+  <script>
     (function () {
       var config = window.EcoWidgetConfig || {};
       var orgSlug = config.org_slug || 'araka-digitalization';
       var apiBase = config.api_base || 'https://ecoforest.green';
-
-      function loadCSS(href) {
-        return new Promise(function (res, rej) {
-          var link = document.createElement('link');
-          link.rel = 'stylesheet';
-          link.href = href;
-          link.onload = res;
-          link.onerror = rej;
-          document.head.appendChild(link);
-        });
-      }
-
-      function loadScript(src) {
-        return new Promise(function (res, rej) {
-          var s = document.createElement('script');
-          s.src = src;
-          s.async = true;
-          s.onload = res;
-          s.onerror = rej;
-          document.head.appendChild(s);
-        });
-      }
 
       function waitForDomReady() {
         return new Promise(function (res) {
@@ -66,16 +59,6 @@
             res();
           }
         });
-      }
-
-      function notify(msg, type) {
-        type = type || 'info';
-        if (window.$ && $.notify) {
-          $.notify(msg, type);
-          return;
-        }
-        var method = type === 'error' ? 'error' : type === 'success' ? 'log' : 'info';
-        console[method]('[EcoWidget]', msg);
       }
 
       async function fetchWithRetry(url, options, retries) {
@@ -95,31 +78,23 @@
       (async function boot() {
         await waitForDomReady();
 
-        try {
-          await loadCSS('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css');
-          loadScript('https://cdnjs.cloudflare.com/ajax/libs/notify/0.4.2/notify.min.js').catch(function () { });
-        } catch (e) {
-          console.warn('[EcoWidget] Assets failed:', e);
-        }
-
-        var wrapper = document.querySelector('.widget-wrapper');
-        if (!wrapper) {
-          wrapper = document.createElement('div');
-          wrapper.className = 'widget-wrapper';
-          document.body.appendChild(wrapper);
-        }
+        const wrapper = document.querySelector('.widget-wrapper');
+        if (!wrapper) return;
 
         try {
-          var res = await fetchWithRetry(
+          const res = await fetchWithRetry(
             apiBase + '/widget/impacts/v2/' + orgSlug,
             { credentials: 'omit' }
           );
-          var html = await res.text();
+          const html = await res.text();
           wrapper.innerHTML = html;
         } catch (err) {
-          console.error('[EcoWidget] Fetch failed:', err);
-          notify('Failed to load widget.', 'error');
-          return;
+          console.error('[EcoWidget] Failed to load:', err);
+          wrapper.innerHTML = '<p style="color:red">Widget failed to load.</p>';
         }
+      })();
+    })();
+  </script>
+</body>
+</html>
 
-        wrappe
