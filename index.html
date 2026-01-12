@@ -3,70 +3,78 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ecoforest Impact Widget</title>
+  <title>Ecoforest Impact – Full Screen</title>
 
   <link rel="preconnect" href="https://ecoforest.green" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
 
   <style>
-    /* === CLEAN FULL TAB CONTAINER === */
-    .eco-widget-fullscreen {
-      width: 100%;
+    /* ===== Page reset ===== */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ===== Full screen professional background ===== */
+    .eco-fullscreen {
       min-height: 100vh;
-      background: #f4f7f6; /* professional neutral */
+      width: 100%;
+      background: linear-gradient(135deg, #eef3ef, #f8faf8);
       display: flex;
       justify-content: center;
-      align-items: flex-start;
-      padding: 60px 20px;
+      align-items: center;
+      padding: 48px 20px;
       box-sizing: border-box;
     }
 
-    .eco-widget-inner {
+    /* Optional: subtle frame so it looks like a section */
+    .eco-frame {
       width: 100%;
       max-width: 1200px;
-      background: #ffffff;
-      border-radius: 14px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-      padding: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
-    /* === FORCE WIDGET OPEN === */
-    .container-eco {
+    /* ===== Force the green widget card to be visible and clean ===== */
+    .eco-fullscreen .container-eco {
+      position: static !important;
       transform: scale(1) !important;
       opacity: 1 !important;
       pointer-events: auto !important;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.15);
     }
 
-    .container-eco.scaly {
+    /* If the widget uses the "scaly" class to open, keep it open */
+    .eco-fullscreen .container-eco.scaly {
       transform: scale(1) !important;
+      opacity: 1 !important;
     }
 
-    /* === REMOVE ICON / OVERLAY / CLOSE === */
-    #eco__opener,
-    #over-lay-action,
-    .openMenu,
-    .closeMenu,
-    #fa-times,
-    #container-handler {
+    /* Remove opener/overlay/close controls so it behaves like a section */
+    .eco-fullscreen #eco__opener,
+    .eco-fullscreen #over-lay-action,
+    .eco-fullscreen .openMenu,
+    .eco-fullscreen .closeMenu,
+    .eco-fullscreen #fa-times,
+    .eco-fullscreen #container-handler {
       display: none !important;
-    }
-
-    /* Optional: make widget content breathe */
-    .container-eco * {
-      box-sizing: border-box;
     }
   </style>
 </head>
 
 <body>
-  <div class="eco-widget-fullscreen">
-    <div class="eco-widget-inner">
+  <!-- Full screen section -->
+  <div class="eco-fullscreen">
+    <div class="eco-frame">
       <div class="widget-wrapper"></div>
     </div>
   </div>
 
   <script>
     (function () {
+      // Keep API & org slug unchanged (as requested)
       var config = window.EcoWidgetConfig || {};
       var orgSlug = config.org_slug || 'araka-digitalization';
       var apiBase = config.api_base || 'https://ecoforest.green';
@@ -82,35 +90,283 @@
         });
       }
 
-      async function fetchWithRetry(url, retries) {
+      function loadScript(src) {
+        return new Promise(function (res, rej) {
+          var s = document.createElement('script');
+          s.src = src;
+          s.async = true;
+          s.onload = res;
+          s.onerror = rej;
+          document.head.appendChild(s);
+        });
+      }
+
+      function waitForDomReady() {
+        return new Promise(function (res) {
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', res, { once: true });
+          } else {
+            res();
+          }
+        });
+      }
+
+      async function fetchWithRetry(url, options, retries) {
         retries = retries || 3;
         for (var i = 0; i < retries; i++) {
           try {
-            var res = await fetch(url, { credentials: 'omit' });
-            if (!res.ok) throw new Error(res.status);
-            return res;
-          } catch (e) {
-            if (i === retries - 1) throw e;
-            await new Promise(r => setTimeout(r, 500 * (i + 1)));
+            var r = await fetch(url, options);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r;
+          } catch (err) {
+            if (i === retries - 1) throw err;
+            await new Promise(function (r2) { setTimeout(r2, Math.pow(2, i) * 500); });
           }
         }
       }
 
       (async function boot() {
-        await loadCSS('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css');
+        await waitForDomReady();
+
+        // Load same assets (no API/info changes)
+        try {
+          await loadCSS('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css');
+          // Optional notify lib (kept from your original code)
+          loadScript('https://cdnjs.cloudflare.com/ajax/libs/notify/0.4.2/notify.min.js').catch(function () {});
+        } catch (e) {
+          console.warn('[EcoWidget] Assets failed:', e);
+        }
 
         var wrapper = document.querySelector('.widget-wrapper');
+        if (!wrapper) {
+          wrapper = document.createElement('div');
+          wrapper.className = 'widget-wrapper';
+          document.body.appendChild(wrapper);
+        }
 
         try {
           var res = await fetchWithRetry(
-            apiBase + '/widget/impacts/v2/' + orgSlug
+            apiBase + '/widget/impacts/v2/' + orgSlug,
+            { credentials: 'omit' }
           );
           var html = await res.text();
           wrapper.innerHTML = html;
         } catch (err) {
-          console.error('[EcoWidget] Failed to load widget', err);
+          console.error('[EcoWidget] Fetch failed:', err);
+          wrapper.innerHTML = '<div style="font-family: Arial, sans-serif; padding: 16px;">Failed to load widget.</div>';
+          return;
         }
 
-        /* === FORCE OPEN STATE AFTER LOAD === */
+        // Force the widget to display as an always-open section
         setTimeout(function () {
-          var ecoContainer = wrapper.querySelector('.container-
+          var containerEco = wrapper.querySelector('.container-eco');
+          if (containerEco) containerEco.classList.add('scaly');
+
+          // Also remove any overlay element if present (extra safety)
+          var overlay = wrapper.querySelector('#over-lay-action');
+          if (overlay) overlay.parentNode.removeChild(overlay);
+        }, 250);
+
+        // Block clicks that try to close it (extra safety)
+        wrapper.addEventListener('click', function (e) {
+          var closeAttempt =
+            (e.target && (e.target.id === 'fa-times' || e.target.id === 'container-handler')) ||
+            (e.target && e.target.closest && (e.target.closest('.closeMenu') || e.target.closest('#over-lay-action')));
+
+          if (closeAttempt) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }, true);
+      })();
+    })();
+  </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ecoforest Impact – Full Screen</title>
+
+  <link rel="preconnect" href="https://ecoforest.green" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+
+  <style>
+    /* ===== Page reset ===== */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ===== Full screen professional background ===== */
+    .eco-fullscreen {
+      min-height: 100vh;
+      width: 100%;
+      background: linear-gradient(135deg, #eef3ef, #f8faf8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 48px 20px;
+      box-sizing: border-box;
+    }
+
+    /* Optional: subtle frame so it looks like a section */
+    .eco-frame {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* ===== Force the green widget card to be visible and clean ===== */
+    .eco-fullscreen .container-eco {
+      position: static !important;
+      transform: scale(1) !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    /* If the widget uses the "scaly" class to open, keep it open */
+    .eco-fullscreen .container-eco.scaly {
+      transform: scale(1) !important;
+      opacity: 1 !important;
+    }
+
+    /* Remove opener/overlay/close controls so it behaves like a section */
+    .eco-fullscreen #eco__opener,
+    .eco-fullscreen #over-lay-action,
+    .eco-fullscreen .openMenu,
+    .eco-fullscreen .closeMenu,
+    .eco-fullscreen #fa-times,
+    .eco-fullscreen #container-handler {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Full screen section -->
+  <div class="eco-fullscreen">
+    <div class="eco-frame">
+      <div class="widget-wrapper"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      // Keep API & org slug unchanged (as requested)
+      var config = window.EcoWidgetConfig || {};
+      var orgSlug = config.org_slug || 'araka-digitalization';
+      var apiBase = config.api_base || 'https://ecoforest.green';
+
+      function loadCSS(href) {
+        return new Promise(function (res, rej) {
+          var link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = href;
+          link.onload = res;
+          link.onerror = rej;
+          document.head.appendChild(link);
+        });
+      }
+
+      function loadScript(src) {
+        return new Promise(function (res, rej) {
+          var s = document.createElement('script');
+          s.src = src;
+          s.async = true;
+          s.onload = res;
+          s.onerror = rej;
+          document.head.appendChild(s);
+        });
+      }
+
+      function waitForDomReady() {
+        return new Promise(function (res) {
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', res, { once: true });
+          } else {
+            res();
+          }
+        });
+      }
+
+      async function fetchWithRetry(url, options, retries) {
+        retries = retries || 3;
+        for (var i = 0; i < retries; i++) {
+          try {
+            var r = await fetch(url, options);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r;
+          } catch (err) {
+            if (i === retries - 1) throw err;
+            await new Promise(function (r2) { setTimeout(r2, Math.pow(2, i) * 500); });
+          }
+        }
+      }
+
+      (async function boot() {
+        await waitForDomReady();
+
+        // Load same assets (no API/info changes)
+        try {
+          await loadCSS('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css');
+          // Optional notify lib (kept from your original code)
+          loadScript('https://cdnjs.cloudflare.com/ajax/libs/notify/0.4.2/notify.min.js').catch(function () {});
+        } catch (e) {
+          console.warn('[EcoWidget] Assets failed:', e);
+        }
+
+        var wrapper = document.querySelector('.widget-wrapper');
+        if (!wrapper) {
+          wrapper = document.createElement('div');
+          wrapper.className = 'widget-wrapper';
+          document.body.appendChild(wrapper);
+        }
+
+        try {
+          var res = await fetchWithRetry(
+            apiBase + '/widget/impacts/v2/' + orgSlug,
+            { credentials: 'omit' }
+          );
+          var html = await res.text();
+          wrapper.innerHTML = html;
+        } catch (err) {
+          console.error('[EcoWidget] Fetch failed:', err);
+          wrapper.innerHTML = '<div style="font-family: Arial, sans-serif; padding: 16px;">Failed to load widget.</div>';
+          return;
+        }
+
+        // Force the widget to display as an always-open section
+        setTimeout(function () {
+          var containerEco = wrapper.querySelector('.container-eco');
+          if (containerEco) containerEco.classList.add('scaly');
+
+          // Also remove any overlay element if present (extra safety)
+          var overlay = wrapper.querySelector('#over-lay-action');
+          if (overlay) overlay.parentNode.removeChild(overlay);
+        }, 250);
+
+        // Block clicks that try to close it (extra safety)
+        wrapper.addEventListener('click', function (e) {
+          var closeAttempt =
+            (e.target && (e.target.id === 'fa-times' || e.target.id === 'container-handler')) ||
+            (e.target && e.target.closest && (e.target.closest('.closeMenu') || e.target.closest('#over-lay-action')));
+
+          if (closeAttempt) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }, true);
+      })();
+    })();
+  </script>
+</body>
+</html>
