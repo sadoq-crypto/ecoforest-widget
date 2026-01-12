@@ -4,46 +4,66 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ecoforest Impact Widget</title>
+
   <link rel="preconnect" href="https://ecoforest.green" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
 
-  <!-- Font Awesome for icons -->
-  <link
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"
-    rel="stylesheet"
-  />
-
-  <!-- Optional notify CSS (if used by widget) -->
-  <link
-    href="https://cdnjs.cloudflare.com/ajax/libs/notify/0.4.2/styles/metro/notify-metro.min.css"
-    rel="stylesheet"
-  />
-
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      background: linear-gradient(135deg, #d0f0c0, #a1e3d8);
-      font-family: "Segoe UI", sans-serif;
+    /* === CLEAN FULL TAB CONTAINER === */
+    .eco-widget-fullscreen {
+      width: 100%;
+      min-height: 100vh;
+      background: #f4f7f6; /* professional neutral */
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 60px 20px;
+      box-sizing: border-box;
     }
 
-    .widget-wrapper {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 9999;
+    .eco-widget-inner {
+      width: 100%;
+      max-width: 1200px;
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      padding: 24px;
+    }
+
+    /* === FORCE WIDGET OPEN === */
+    .container-eco {
+      transform: scale(1) !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+
+    .container-eco.scaly {
+      transform: scale(1) !important;
+    }
+
+    /* === REMOVE ICON / OVERLAY / CLOSE === */
+    #eco__opener,
+    #over-lay-action,
+    .openMenu,
+    .closeMenu,
+    #fa-times,
+    #container-handler {
+      display: none !important;
+    }
+
+    /* Optional: make widget content breathe */
+    .container-eco * {
+      box-sizing: border-box;
     }
   </style>
 </head>
-<body>
-  <div class="widget-wrapper"></div>
 
-  <script>
-    window.EcoWidgetConfig = {
-      org_slug: 'araka-digitalization'
-    };
-  </script>
+<body>
+  <div class="eco-widget-fullscreen">
+    <div class="eco-widget-inner">
+      <div class="widget-wrapper"></div>
+    </div>
+  </div>
 
   <script>
     (function () {
@@ -51,50 +71,46 @@
       var orgSlug = config.org_slug || 'araka-digitalization';
       var apiBase = config.api_base || 'https://ecoforest.green';
 
-      function waitForDomReady() {
-        return new Promise(function (res) {
-          if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', res, { once: true });
-          } else {
-            res();
-          }
+      function loadCSS(href) {
+        return new Promise(function (res, rej) {
+          var link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = href;
+          link.onload = res;
+          link.onerror = rej;
+          document.head.appendChild(link);
         });
       }
 
-      async function fetchWithRetry(url, options, retries) {
+      async function fetchWithRetry(url, retries) {
         retries = retries || 3;
         for (var i = 0; i < retries; i++) {
           try {
-            var res = await fetch(url, options);
-            if (!res.ok) throw new Error('HTTP ' + res.status);
+            var res = await fetch(url, { credentials: 'omit' });
+            if (!res.ok) throw new Error(res.status);
             return res;
-          } catch (err) {
-            if (i === retries - 1) throw err;
-            await new Promise(function (r) { setTimeout(r, Math.pow(2, i) * 500); });
+          } catch (e) {
+            if (i === retries - 1) throw e;
+            await new Promise(r => setTimeout(r, 500 * (i + 1)));
           }
         }
       }
 
       (async function boot() {
-        await waitForDomReady();
+        await loadCSS('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css');
 
-        const wrapper = document.querySelector('.widget-wrapper');
-        if (!wrapper) return;
+        var wrapper = document.querySelector('.widget-wrapper');
 
         try {
-          const res = await fetchWithRetry(
-            apiBase + '/widget/impacts/v2/' + orgSlug,
-            { credentials: 'omit' }
+          var res = await fetchWithRetry(
+            apiBase + '/widget/impacts/v2/' + orgSlug
           );
-          const html = await res.text();
+          var html = await res.text();
           wrapper.innerHTML = html;
         } catch (err) {
-          console.error('[EcoWidget] Failed to load:', err);
-          wrapper.innerHTML = '<p style="color:red">Widget failed to load.</p>';
+          console.error('[EcoWidget] Failed to load widget', err);
         }
-      })();
-    })();
-  </script>
-</body>
-</html>
 
+        /* === FORCE OPEN STATE AFTER LOAD === */
+        setTimeout(function () {
+          var ecoContainer = wrapper.querySelector('.container-
